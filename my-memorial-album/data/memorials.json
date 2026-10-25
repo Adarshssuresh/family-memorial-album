@@ -1,0 +1,11 @@
+[
+  {
+    "id": 1,
+    "name": "Grandfather Example",
+    "relation": "Grandfather",
+    "birthDate": "1940-05-12",
+    "deathDate": "2018-08-20",
+    "photo": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80",
+    "tribute": "A loving grandfather who inspired everyone with his wisdom and warm smile."
+  }
+]

@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Memorial Album</title>
+    <style>
+        :root {
+            --bg-color: #fcfbf9;
+            --card-bg: #ffffff;
+            --primary-color: #3e2723;
+            --accent-color: #8d6e63;
+            --text-dark: #2c2c2c;
+            --text-muted: #666666;
+            --border-color: #e0dace;
+            --shadow: 0 4px 15px rgba(0,0,0,0.06);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-dark);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px 20px;
+            max-width: 900px;
+            margin: 0 auto 30px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-weight: normal;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .controls {
+            max-width: 1000px;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            width: 300px;
+            font-size: 1rem;
+        }
+
+        .btn-add {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        .btn-add:hover {
+            background-color: var(--accent-color);
+        }
+
+        .timeline {
+            max-width: 1000px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+        }
+
+        .card img {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-body {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card-title {
+            font-size: 1.4rem;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .card-relation {
+            font-size: 0.9rem;
+            color: var(--accent-color);
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+
+        .card-dates {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+
+        .card-tribute {
+            font-size: 0.95rem;
+            color: var(--text-dark);
+            line-height: 1.5;
+            font-style: italic;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: var(--primary-color);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-cancel {
+            background: #ccc;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #loadingOverlay {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>In Loving Memory</h1>
+        <p>A chronological memorial dedicated to our cherished relatives</p>
+    </header>
+
+    <div class="controls">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search by name or relation..." oninput="filterCards()">
+        <button class="btn-add" onclick="openModal()">+ Add Relative</button>
+    </div>
+
+    <main class="timeline" id="timelineGrid">
+        <!-- Cards will be dynamically inserted here -->
+    </main>
+
+    <!-- Modal Form -->
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <h2>Add Memorial Entry</h2>
+            <form id="memorialForm" onsubmit="handleFormSubmit(event)">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Relationship (e.g. Grandfather, Aunt)</label>
+                    <input type="text" id="relation" required>
+                </div>
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <input type="date" id="birthDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Date of Passing</label>
+                    <input type="date" id="deathDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Photo (URL or Image File)</label>
+                    <input type="text" id="photoUrl" placeholder="https://example.com/photo.jpg or leave blank for upload">
+                    <input type="file" id="photoFile" accept="image/*" style="margin-top:5px;">
+                </div>
+                <div class="form-group">
+                    <label>Short Tribute / Memory</label>
+                    <textarea id="tribute" rows="3" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>GitHub Repository Configuration</label>
+                    <input type="text" id="ghOwnerRepo" placeholder="username/repository-name" required>
+                    <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (PAT)" required>
+                    <small style="color: #666;">Token needs 'contents: write' permission to commit data.</small>
+                </div>
+                <div id="loadingOverlay">Committing data to GitHub... Please wait.</div>
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-add">Save Memorial</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let memorialData = [];
+
+        // Load data on start
+        window.addEventListener('DOMContentLoaded', fetchMemorials);
+
+        async function fetchMemorials() {
+            try {
+                const response = await fetch('data/memorials.json?cachebuster=' + Date.now());
+                memorialData = await response.json();
+                renderCards(memorialData);
+            } catch (err) {
+                console.error("Error loading JSON data:", err);
+            }
+        }
+
+        function renderCards(data) {
+            const grid = document.getElementById('timelineGrid');
+            grid.innerHTML = '';
+
+            // Sort chronologically by Passing Date (Oldest to Newest)
+            const sorted = [...data].sort((a, b) => new Date(a.deathDate) - new Date(b.deathDate));
+
+            sorted.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `
+                    <img src="${item.photo || 'https://via.placeholder.com/300x200?text=In+Memory'}" alt="${item.name}">
+                    <div class="card-body">
+                        <div class="card-title">${item.name}</div>
+                        <div class="card-relation">${item.relation}</div>
+                        <div class="card-dates">
+                            📅 ${formatDate(item.birthDate)} – ${formatDate(item.deathDate)}
+                        </div>
+                        <div class="card-tribute">"${item.tribute}"</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateStr).toLocaleDateString(undefined, options);
+        }
+
+        function filterCards() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = memorialData.filter(item => 
+                item.name.toLowerCase().includes(query) || 
+                item.relation.toLowerCase().includes(query)
+            );
+            renderCards(filtered);
+        }
+
+        function openModal() {
+            document.getElementById('addModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('addModal').style.display = 'none';
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const loading = document.getElementById('loadingOverlay');
+            loading.style.display = 'block';
+
+            const ownerRepo = document.getElementById('ghOwnerRepo').value.trim();
+            const token = document.getElementById('ghToken').value.trim();
+            const name = document.getElementById('name').value;
+            const relation = document.getElementById('relation').value;
+            const birthDate = document.getElementById('birthDate').value;
+            const deathDate = document.getElementById('deathDate').value;
+            const tribute = document.getElementById('tribute').value;
+            let photoUrl = document.getElementById('photoUrl').value;
+            const fileInput = document.getElementById('photoFile');
+
+            try {
+                // If local file was uploaded, read it as Base64
+                if (fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const base64Content = await convertFileToBase64(file);
+                    const filename = `images/${Date.now()}_${file.name}`;
+                    
+                    // Upload image via GitHub API
+                    await commitToGitHub(ownerRepo, token, filename, base64Content, `Upload photo for ${name}`);
+                    photoUrl = filename;
+                }
+
+                // Append new entry to existing array
+                const newEntry = {
+                    id: Date.now(),
+                    name,
+                    relation,
+                    birthDate,
+                    deathDate,
+                    photo: photoUrl,
+                    tribute
+                };
+
+                memorialData.push(newEntry);
+
+                // Get current sha of data/memorials.json
+                const fileRes = await fetch(`https://api.github.com/repos/${ownerRepo}/contents/data/memorials.json`, {
+                    headers: { 'Authorization': `token ${token}` }
+                });
+                const fileInfo = await fileRes.json();
+
+                // Commit updated JSON to GitHub
+                const updatedJsonBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(memorialData, null, 2))));
+                await commitToGitHub(ownerRepo, token, 'data/memorials.json', updatedJsonBase64, `Add memorial entry for ${name}`, fileInfo.sha);
+
+                alert('Memorial entry successfully saved to GitHub! The site will update automatically in 1–2 minutes.');
+                closeModal();
+                renderCards(memorialData);
+            } catch (err) {
+                alert('Error saving entry to GitHub: ' + err.message);
+                console.error(err);
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function convertFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function commitToGitHub(ownerRepo, token, path, contentBase64, message, sha = null) {
+            const body = {
+                message: message,
+                content: contentBase64
+            };
+            if (sha) body.sha = sha;
+
+            const res = await fetch(`https://api.github.com/repos/${ownerRepo}/contents/${path}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.message || 'GitHub API error');
+            }
+            return await res.json();
+        }
+    </script>
+</body>
+</html>
