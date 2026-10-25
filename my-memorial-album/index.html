@@ -123,16 +123,7 @@
         .card-title {
             font-size: 1.4rem;
             color: var(--primary-color);
-            margin-bottom: 5px;
-        }
-
-        .card-relation {
-            font-size: 0.9rem;
-            color: var(--accent-color);
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .card-dates {
@@ -228,7 +219,7 @@
     </header>
 
     <div class="controls">
-        <input type="text" id="searchInput" class="search-box" placeholder="Search by name or relation..." oninput="filterCards()">
+        <input type="text" id="searchInput" class="search-box" placeholder="Search by name..." oninput="filterCards()">
         <button class="btn-add" onclick="openModal()">+ Add Relative</button>
     </div>
 
@@ -236,43 +227,32 @@
         <!-- Cards will be dynamically inserted here -->
     </main>
 
-    <!-- Modal Form -->
+    <!-- Add Relative Modal -->
     <div class="modal" id="addModal">
         <div class="modal-content">
             <h2>Add Memorial Entry</h2>
             <form id="memorialForm" onsubmit="handleFormSubmit(event)">
                 <div class="form-group">
-                    <label>Full Name</label>
-                    <input type="text" id="name" required>
+                    <label>Full Name *</label>
+                    <input type="text" id="name" required placeholder="e.g., Mary Smith">
                 </div>
                 <div class="form-group">
-                    <label>Relationship (e.g. Grandfather, Aunt)</label>
-                    <input type="text" id="relation" required>
+                    <label>Date of Birth <span style="font-weight:normal; color:#888;">(Optional)</span></label>
+                    <input type="date" id="birthDate">
                 </div>
                 <div class="form-group">
-                    <label>Date of Birth</label>
-                    <input type="date" id="birthDate" required>
-                </div>
-                <div class="form-group">
-                    <label>Date of Passing</label>
+                    <label>Date of Passing *</label>
                     <input type="date" id="deathDate" required>
                 </div>
                 <div class="form-group">
-                    <label>Photo (URL or Image File)</label>
-                    <input type="text" id="photoUrl" placeholder="https://example.com/photo.jpg or leave blank for upload">
-                    <input type="file" id="photoFile" accept="image/*" style="margin-top:5px;">
+                    <label>Photo</label>
+                    <input type="file" id="photoFile" accept="image/*" required>
                 </div>
                 <div class="form-group">
                     <label>Short Tribute / Memory</label>
-                    <textarea id="tribute" rows="3" required></textarea>
+                    <textarea id="tribute" rows="3" placeholder="Share a special memory or quote..."></textarea>
                 </div>
-                <div class="form-group">
-                    <label>GitHub Repository Configuration</label>
-                    <input type="text" id="ghOwnerRepo" placeholder="username/repository-name" required>
-                    <input type="password" id="ghToken" placeholder="GitHub Personal Access Token (PAT)" required>
-                    <small style="color: #666;">Token needs 'contents: write' permission to commit data.</small>
-                </div>
-                <div id="loadingOverlay">Committing data to GitHub... Please wait.</div>
+                <div id="loadingOverlay">Saving memorial entry... Please wait.</div>
                 <div class="form-actions">
                     <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
                     <button type="submit" class="btn-add">Save Memorial</button>
@@ -284,12 +264,11 @@
     <script>
         let memorialData = [];
 
-        // Load data on start
         window.addEventListener('DOMContentLoaded', fetchMemorials);
 
         async function fetchMemorials() {
             try {
-                const response = await fetch('data/memorials.json?cachebuster=' + Date.now());
+                const response = await fetch('data/memorials.json?v=' + Date.now());
                 memorialData = await response.json();
                 renderCards(memorialData);
             } catch (err) {
@@ -301,21 +280,27 @@
             const grid = document.getElementById('timelineGrid');
             grid.innerHTML = '';
 
-            // Sort chronologically by Passing Date (Oldest to Newest)
+            // Sort chronologically by Date of Passing (Oldest to Newest)
             const sorted = [...data].sort((a, b) => new Date(a.deathDate) - new Date(b.deathDate));
 
             sorted.forEach(item => {
                 const card = document.createElement('div');
                 card.className = 'card';
+                
+                // Construct date display line depending on whether birth date is provided
+                let dateDisplay = '';
+                if (item.birthDate) {
+                    dateDisplay = `📅 ${formatDate(item.birthDate)} – ${formatDate(item.deathDate)}`;
+                } else {
+                    dateDisplay = `📅 Passed: ${formatDate(item.deathDate)}`;
+                }
+
                 card.innerHTML = `
                     <img src="${item.photo || 'https://via.placeholder.com/300x200?text=In+Memory'}" alt="${item.name}">
                     <div class="card-body">
                         <div class="card-title">${item.name}</div>
-                        <div class="card-relation">${item.relation}</div>
-                        <div class="card-dates">
-                            📅 ${formatDate(item.birthDate)} – ${formatDate(item.deathDate)}
-                        </div>
-                        <div class="card-tribute">"${item.tribute}"</div>
+                        <div class="card-dates">${dateDisplay}</div>
+                        ${item.tribute ? `<div class="card-tribute">"${item.tribute}"</div>` : ''}
                     </div>
                 `;
                 grid.appendChild(card);
@@ -331,8 +316,7 @@
         function filterCards() {
             const query = document.getElementById('searchInput').value.toLowerCase();
             const filtered = memorialData.filter(item => 
-                item.name.toLowerCase().includes(query) || 
-                item.relation.toLowerCase().includes(query)
+                item.name.toLowerCase().includes(query)
             );
             renderCards(filtered);
         }
@@ -351,56 +335,47 @@
             const loading = document.getElementById('loadingOverlay');
             loading.style.display = 'block';
 
-            const ownerRepo = document.getElementById('ghOwnerRepo').value.trim();
-            const token = document.getElementById('ghToken').value.trim();
             const name = document.getElementById('name').value;
-            const relation = document.getElementById('relation').value;
             const birthDate = document.getElementById('birthDate').value;
             const deathDate = document.getElementById('deathDate').value;
             const tribute = document.getElementById('tribute').value;
-            let photoUrl = document.getElementById('photoUrl').value;
             const fileInput = document.getElementById('photoFile');
 
             try {
-                // If local file was uploaded, read it as Base64
+                let photoBase64 = null;
+                let photoName = null;
+
                 if (fileInput.files.length > 0) {
                     const file = fileInput.files[0];
-                    const base64Content = await convertFileToBase64(file);
-                    const filename = `images/${Date.now()}_${file.name}`;
-                    
-                    // Upload image via GitHub API
-                    await commitToGitHub(ownerRepo, token, filename, base64Content, `Upload photo for ${name}`);
-                    photoUrl = filename;
+                    photoBase64 = await convertFileToBase64(file);
+                    photoName = file.name;
                 }
 
-                // Append new entry to existing array
-                const newEntry = {
-                    id: Date.now(),
-                    name,
-                    relation,
-                    birthDate,
-                    deathDate,
-                    photo: photoUrl,
-                    tribute
-                };
-
-                memorialData.push(newEntry);
-
-                // Get current sha of data/memorials.json
-                const fileRes = await fetch(`https://api.github.com/repos/${ownerRepo}/contents/data/memorials.json`, {
-                    headers: { 'Authorization': `token ${token}` }
+                // Call Vercel Serverless Function
+                const response = await fetch('/api/save-memorial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        birthDate,
+                        deathDate,
+                        tribute,
+                        photoBase64,
+                        photoName
+                    })
                 });
-                const fileInfo = await fileRes.json();
 
-                // Commit updated JSON to GitHub
-                const updatedJsonBase64 = btoa(unescape(encodeURIComponent(JSON.stringify(memorialData, null, 2))));
-                await commitToGitHub(ownerRepo, token, 'data/memorials.json', updatedJsonBase64, `Add memorial entry for ${name}`, fileInfo.sha);
+                const result = await response.json();
 
-                alert('Memorial entry successfully saved to GitHub! The site will update automatically in 1–2 minutes.');
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to save memorial');
+                }
+
+                alert('Memorial entry successfully saved! The page will refresh once Vercel updates the build (usually within 1–2 minutes).');
                 closeModal();
-                renderCards(memorialData);
+                document.getElementById('memorialForm').reset();
             } catch (err) {
-                alert('Error saving entry to GitHub: ' + err.message);
+                alert('Error saving entry: ' + err.message);
                 console.error(err);
             } finally {
                 loading.style.display = 'none';
@@ -414,29 +389,6 @@
                 reader.onload = () => resolve(reader.result.split(',')[1]);
                 reader.onerror = error => reject(error);
             });
-        }
-
-        async function commitToGitHub(ownerRepo, token, path, contentBase64, message, sha = null) {
-            const body = {
-                message: message,
-                content: contentBase64
-            };
-            if (sha) body.sha = sha;
-
-            const res = await fetch(`https://api.github.com/repos/${ownerRepo}/contents/${path}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `token ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
-            });
-
-            if (!res.ok) {
-                const errData = await res.json();
-                throw new Error(errData.message || 'GitHub API error');
-            }
-            return await res.json();
         }
     </script>
 </body>
